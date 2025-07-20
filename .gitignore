@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+chatbot_model.keras
+words.pkl
+classes.pkl

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Chatbot</title>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+<div class="chat-wrapper">
+
+  <!-- Header -->
+  <div class="chat-header">
+    <div class="bot-avatar">🤖</div>
+    <div class="bot-info">
+      <div class="bot-name">Bot</div>
+      <div class="bot-status"><span class="status-dot"></span> Online</div>
+    </div>
+    <button class="clear-btn" onclick="clearChat()" title="Clear chat">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"></polyline>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+        <path d="M10 11v6M14 11v6"></path>
+        <path d="M9 6V4h6v2"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Messages -->
+  <div class="chat-messages" id="chatMessages">
+    <div class="message bot-message">
+      <div class="bubble">Hey there! 👋 I'm Bot. Ask me anything or use the quick buttons below!</div>
+      <div class="msg-time">just now</div>
+    </div>
+  </div>
+
+  <!-- Quick Reply Buttons -->
+  <div class="quick-replies" id="quickReplies">
+    <button class="quick-btn" onclick="quickSend('Hello!')">👋 Hello</button>
+    <button class="quick-btn" onclick="quickSend('Tell me a joke')">😂 Joke</button>
+    <button class="quick-btn" onclick="quickSend('Motivate me')">💪 Motivate me</button>
+    <button class="quick-btn" onclick="quickSend('What can you do?')">🤖 What can you do?</button>
+    <button class="quick-btn" onclick="quickSend('Who made you?')">👨‍💻 Who made you?</button>
+    <button class="quick-btn" onclick="quickSend('I am feeling sad')">😢 I am sad</button>
+  </div>
+
+  <!-- Input -->
+  <div class="chat-input-area">
+    <input
+      type="text"
+      id="userInput"
+      class="chat-input"
+      placeholder="Type a message..."
+      autocomplete="off"
+    />
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>
+  </div>
+
+</div>
+
+<script>
+  const input    = document.getElementById('userInput');
+  const messages = document.getElementById('chatMessages');
+
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+
+  function getTime() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function appendMessage(text, sender) {
+    const div = document.createElement('div');
+    div.className = `message ${sender}-message`;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+
+    const time = document.createElement('div');
+    time.className = 'msg-time';
+    time.textContent = getTime();
+
+    div.appendChild(bubble);
+    div.appendChild(time);
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function showTyping() {
+    const div = document.createElement('div');
+    div.className = 'message bot-message typing-indicator';
+    div.id = 'typingIndicator';
+    div.innerHTML = '<div class="bubble"><span></span><span></span><span></span></div>';
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function removeTyping() {
+    const el = document.getElementById('typingIndicator');
+    if (el) el.remove();
+  }
+
+  async function sendMessage(text) {
+    const msg = text || input.value.trim();
+    if (!msg) return;
+
+    appendMessage(msg, 'user');
+    input.value = '';
+
+    // Hide quick replies after first real message
+    document.getElementById('quickReplies').style.display = 'none';
+
+    showTyping();
+
+    try {
+      const res = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+      });
+      const data = await res.json();
+
+      setTimeout(() => {
+        removeTyping();
+        appendMessage(data.response, 'bot');
+      }, 600);
+
+    } catch (err) {
+      removeTyping();
+      appendMessage('Sorry, something went wrong. Please try again.', 'bot');
+    }
+  }
+
+  function quickSend(text) {
+    sendMessage(text);
+  }
+
+  async function clearChat() {
+    // Clear session on server
+    await fetch('/clear', { method: 'POST' });
+    // Clear messages in UI
+    messages.innerHTML = '';
+    appendMessage('Chat cleared! Hey there! 👋 I\'m Bot. Ask me anything!', 'bot');
+    // Show quick replies again
+    document.getElementById('quickReplies').style.display = 'flex';
+  }
+</script>
+</body>
+</html>
