@@ -3,21 +3,22 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="AI Chatbot - Your friendly assistant"/>
   <title>AI Chatbot</title>
   <link rel="stylesheet" href="/static/style.css"/>
 </head>
 <body>
-
+  
 <div class="chat-wrapper">
 
   <!-- Header -->
   <div class="chat-header">
-    <div class="bot-avatar">🤖</div>
+    <div class="bot-avatar" role="img" aria-label="Bot avatar">🤖</div>
     <div class="bot-info">
       <div class="bot-name">Bot</div>
       <div class="bot-status"><span class="status-dot"></span> Online</div>
     </div>
-    <button class="clear-btn" onclick="clearChat()" title="Clear chat">
+    <button class="clear-btn" onclick="clearChat()" title="Clear chat" aria-label="Clear chat">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="3 6 5 6 21 6"></polyline>
         <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
@@ -28,15 +29,22 @@
   </div>
 
   <!-- Messages -->
-  <div class="chat-messages" id="chatMessages">
-    <div class="message bot-message">
+  <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-label="Chat messages">
+    <div class="message bot-message fade-in">
       <div class="bubble">Hey there! 👋 I'm Bot. Ask me anything or use the quick buttons below!</div>
       <div class="msg-time">just now</div>
     </div>
   </div>
 
+  <!-- Scroll to Bottom Button -->
+  <button class="scroll-bottom-btn" id="scrollBottomBtn" onclick="scrollToBottom()" title="Scroll to bottom" aria-label="Scroll to bottom">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 5v14M19 12l-7 7-7-7"/>
+    </svg>
+  </button>
+
   <!-- Quick Reply Buttons -->
-  <div class="quick-replies" id="quickReplies">
+  <div class="quick-replies" id="quickReplies" role="group" aria-label="Quick replies">
     <button class="quick-btn" onclick="quickSend('Hello!')">👋 Hello</button>
     <button class="quick-btn" onclick="quickSend('Tell me a joke')">😂 Joke</button>
     <button class="quick-btn" onclick="quickSend('Motivate me')">💪 Motivate me</button>
@@ -47,14 +55,19 @@
 
   <!-- Input -->
   <div class="chat-input-area">
-    <input
-      type="text"
-      id="userInput"
-      class="chat-input"
-      placeholder="Type a message..."
-      autocomplete="off"
-    />
-    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+    <div class="input-wrapper">
+      <input
+        type="text"
+        id="userInput"
+        class="chat-input"
+        placeholder="Type a message..."
+        autocomplete="off"
+        maxlength="500"
+        aria-label="Message input"
+      />
+      <span class="char-counter" id="charCounter">0/500</span>
+    </div>
+    <button class="send-btn" id="sendBtn" onclick="sendMessage()" aria-label="Send message" disabled>
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="22" y1="2" x2="11" y2="13"></line>
         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -65,10 +78,49 @@
 </div>
 
 <script>
-  const input    = document.getElementById('userInput');
-  const messages = document.getElementById('chatMessages');
+  const input          = document.getElementById('userInput');
+  const messages       = document.getElementById('chatMessages');
+  const sendBtn        = document.getElementById('sendBtn');
+  const charCounter    = document.getElementById('charCounter');
+  const scrollBottomBtn = document.getElementById('scrollBottomBtn');
+  const MAX_CHARS      = 500;
 
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+  let isAtBottom = true;
+
+  // Initialize
+  input.addEventListener('keydown', e => { 
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  input.addEventListener('input', () => {
+    const length = input.value.length;
+    charCounter.textContent = `${length}/${MAX_CHARS}`;
+    
+    // Enable/disable send button
+    sendBtn.disabled = length === 0 || length > MAX_CHARS;
+    
+    // Visual feedback for character limit
+    if (length > MAX_CHARS * 0.9) {
+      charCounter.style.color = length >= MAX_CHARS ? '#e53e3e' : '#dd6b20';
+    } else {
+      charCounter.style.color = '#718096';
+    }
+  });
+
+  // Track scroll position
+  messages.addEventListener('scroll', () => {
+    const threshold = 100;
+    const position = messages.scrollTop + messages.clientHeight;
+    const height = messages.scrollHeight;
+    isAtBottom = position >= height - threshold;
+    
+    // Show/hide scroll button
+    scrollBottomBtn.style.opacity = isAtBottom ? '0' : '1';
+    scrollBottomBtn.style.pointerEvents = isAtBottom ? 'none' : 'all';
+  });
 
   function getTime() {
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -76,11 +128,15 @@
 
   function appendMessage(text, sender) {
     const div = document.createElement('div');
-    div.className = `message ${sender}-message`;
+    div.className = `message ${sender}-message fade-in`;
 
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
-    bubble.textContent = text;
+    
+    // Convert URLs to clickable links
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const formattedText = text.replace(urlRegex, url => `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`);
+    bubble.innerHTML = formattedText;
 
     const time = document.createElement('div');
     time.className = 'msg-time';
@@ -89,16 +145,26 @@
     div.appendChild(bubble);
     div.appendChild(time);
     messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
+    
+    if (isAtBottom) {
+      scrollToBottom();
+    }
+  }
+
+  function scrollToBottom() {
+    messages.scrollTo({
+      top: messages.scrollHeight,
+      behavior: 'smooth'
+    });
   }
 
   function showTyping() {
     const div = document.createElement('div');
-    div.className = 'message bot-message typing-indicator';
+    div.className = 'message bot-message typing-indicator fade-in';
     div.id = 'typingIndicator';
     div.innerHTML = '<div class="bubble"><span></span><span></span><span></span></div>';
     messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
+    scrollToBottom();
   }
 
   function removeTyping() {
@@ -108,13 +174,18 @@
 
   async function sendMessage(text) {
     const msg = text || input.value.trim();
-    if (!msg) return;
+    if (!msg || msg.length > MAX_CHARS) return;
 
     appendMessage(msg, 'user');
     input.value = '';
+    charCounter.textContent = `0/${MAX_CHARS}`;
+    sendBtn.disabled = true;
 
     // Hide quick replies after first real message
-    document.getElementById('quickReplies').style.display = 'none';
+    const quickReplies = document.getElementById('quickReplies');
+    if (quickReplies.style.display !== 'none') {
+      quickReplies.style.display = 'none';
+    }
 
     showTyping();
 
@@ -124,14 +195,18 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg })
       });
+      
+      if (!res.ok) throw new Error('Network response was not ok');
+      
       const data = await res.json();
 
       setTimeout(() => {
         removeTyping();
         appendMessage(data.response, 'bot');
-      }, 600);
+      }, 500 + Math.random() * 500);
 
     } catch (err) {
+      console.error('Chat error:', err);
       removeTyping();
       appendMessage('Sorry, something went wrong. Please try again.', 'bot');
     }
@@ -139,17 +214,41 @@
 
   function quickSend(text) {
     sendMessage(text);
+    input.focus();
   }
 
   async function clearChat() {
-    // Clear session on server
-    await fetch('/clear', { method: 'POST' });
-    // Clear messages in UI
-    messages.innerHTML = '';
-    appendMessage('Chat cleared! Hey there! 👋 I\'m Bot. Ask me anything!', 'bot');
-    // Show quick replies again
-    document.getElementById('quickReplies').style.display = 'flex';
+    if (!confirm('Are you sure you want to clear the chat?')) return;
+    
+    try {
+      await fetch('/clear', { method: 'POST' });
+      
+      messages.style.opacity = '0';
+      messages.style.transition = 'opacity 0.3s';
+      
+      setTimeout(() => {
+        messages.innerHTML = '';
+        appendMessage('Chat cleared! Hey there! 👋 I\'m Bot. Ask me anything!', 'bot');
+        document.getElementById('quickReplies').style.display = 'flex';
+        messages.style.opacity = '1';
+      }, 300);
+      
+    } catch (err) {
+      console.error('Clear error:', err);
+      appendMessage('Error clearing chat. Please refresh the page.', 'bot');
+    }
   }
+
+  window.addEventListener('load', () => {
+    input.focus();
+    scrollToBottom();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      input.focus();
+    }
+  });
 </script>
 </body>
 </html>
